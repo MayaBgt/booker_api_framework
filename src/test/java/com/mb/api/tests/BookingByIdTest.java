@@ -1,6 +1,8 @@
 package com.mb.api.tests;
 
 import java.time.LocalDate;
+
+import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
 import io.restassured.builder.ResponseSpecBuilder;
 import io.restassured.http.ContentType;
@@ -16,7 +18,7 @@ import java.util.Random;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.hamcrest.Matchers.*;
 
-public class BookingByIdTest extends BaseTest{
+public class BookingByIdTest extends BaseTest {
 
     private List<Map<String, Object>> bookings;
     private static final String ENDPOINT = "/booking";
@@ -51,6 +53,7 @@ public class BookingByIdTest extends BaseTest{
         int randomIndex = new Random().nextInt(bookings.size());
         randomBookingId = ((Number) bookings.get(randomIndex).get(BOOKING_ID)).intValue();
     }
+
     @Test
     public void bookingByIdSchemaMatchesJsonSchema() {
         getResponseFromEndpoint(ENDPOINT + "/" + randomBookingId)
@@ -58,6 +61,7 @@ public class BookingByIdTest extends BaseTest{
                 .assertThat()
                 .body(matchesJsonSchemaInClasspath("schemas/BookingByIdSchema.json"));
     }
+
     @Test
     public void bookingByIdBusinessLogicIsValid() {
         for (Map<String, Object> b : bookings) {
@@ -115,17 +119,23 @@ public class BookingByIdTest extends BaseTest{
             }
         }
     }
-    @Test
-    public void bookingByIdReturns404ForNonExistingId() {
-        int invalidId = 9999999;
-
-        getResponseFromEndpoint(ENDPOINT + "/" + invalidId, response404)
-                .then()
-                .log().all();
-    }
 
     @Test
-    public void bookingByIdReturns404ForInvalidIdString() {
-        getResponseFromEndpoint(ENDPOINT + "/abc", response404);
+    public void testInvalidBookingIds() {
+        String[] invalidIds = {
+                "abc",          // letters
+                "-1",           // negative
+                "!",            // special char
+                "@#$%",         // multiple special chars
+                "null",         // literal null
+                "999999999999", // extreme large number
+                "' OR 1=1 --",  // SQL injection attempt
+                "\" OR \"\"=\"" // SQL-like injection
+        };
+
+        for (String id : invalidIds) {
+            System.out.println(id);
+            getResponseFromEndpoint(ENDPOINT + "/" + id, response404);
+        }
     }
 }
